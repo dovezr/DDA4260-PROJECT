@@ -1,10 +1,10 @@
 import numpy as np
 
 def getTrainingData():
-    return np.genfromtxt("training.csv", delimiter=",", dtype=np.int)
+    return np.genfromtxt("D:\\DDA4260\\DDA4260-PROJECT\\DDA4260_PROJECT\\training.csv", delimiter=",",dtype=int)
 
 def getValidationData():
-    return np.genfromtxt("validation.csv", delimiter=",", dtype=np.int)
+    return np.genfromtxt("D:\\DDA4260\\DDA4260-PROJECT\\DDA4260_PROJECT\\validation.csv", delimiter=",",dtype=int)
 
 
 def getUsefulStats(training):
