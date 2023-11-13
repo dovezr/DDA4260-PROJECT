@@ -48,7 +48,7 @@ def visibleToHiddenVec(v, w):
     for j in range(F):
         for k in range(K):
             for i in range(m):
-                ret[j] += v[i][k]*w[i][j][k]
+                ret[j] += v[i,k] * w[i,j,k]
     return sig(ret)
 
 def hiddenToVisible(h, w):
@@ -67,7 +67,7 @@ def hiddenToVisible(h, w):
     for i in range(m):
         for k in range(K):
             for j in range(F):
-                ret[i,k] += h[j]*w[i,j,k]
+                ret[i,k] += h[j] * w[i,j,k]
         ret[i] = softmax(ret[i])
     return ret
 
@@ -106,8 +106,13 @@ def getPredictedDistribution(v, w, wq):
     #       the distribution over the movie whose associated weights are wq
     # ret is a vector of size 5
     hidden_vec = visibleToHiddenVec(v, w)
-    sample0 = sample(hidden_vec)
-    return np.dot(sample0.T, wq)
+    sample_hidden_vec = sample(hidden_vec)
+    F, K = wq.shape
+    ret = np.zeros(K)
+    for i in range(K):
+        for j in range(F):
+            ret[i] += wq[j, i] * sample_hidden_vec[j]
+    return softmax(ret)
 
 def predictRatingMax(ratingDistribution):
     ### TO IMPLEMENT ###
@@ -127,7 +132,7 @@ def predictRatingExp(ratingDistribution):
     # that returns a rating from the distribution
     # We decide here that the predicted rating will be the expectation over
     # the softmax applied to ratingDistribution
-    return np.sum(ratingDistribution * np.arange(K))
+    return np.sum(ratingDistribution * np.arange(1,K+1))
 
 def predictMovieForUser(q, user, W, allUsersRatings, predictType="exp"):
     # movie is movie idx
