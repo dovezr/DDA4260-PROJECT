@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 def getTrainingData():
     return np.genfromtxt("training.csv", delimiter=",",dtype=int)
@@ -45,3 +46,25 @@ def rmse(r, r_hat):
     r = np.array(r)
     r_hat = np.array(r_hat)
     return np.linalg.norm(r - r_hat) / np.sqrt(len(r))
+
+
+def adaptive_lr(total_list, size, threshold, rate):
+    try:
+        tested_avg = np.mean(total_list[-size:])
+        last_avg = np.mean(total_list[-2*size : -size])
+        if last_avg - tested_avg < threshold:   
+            return rate
+        else:   
+            return 1
+    except:
+        return 1
+
+def plot_loss(train_list, validation_list):
+    # x = np.linspace(len(train_list))
+    plt.plot(train_list, label = 'train')
+    plt.plot(validation_list, label = 'validation')
+    plt.xlabel('epoch')
+    plt.ylabel('rmse')
+    plt.title('RMSE Lists')
+    plt.legend()
+    plt.show()

@@ -1,9 +1,11 @@
 import numpy as np
 import projectLib as lib
+from numba import jit
+
 
 # set highest rating
 K = 5
-
+@jit(nopython = True)
 def softmax(x):
     # Numerically stable softmax function
     e_x = np.exp(x - np.max(x))
@@ -71,6 +73,7 @@ def hiddenToVisible(h, w):
         ret[i] = softmax(ret[i])
     return ret
 
+@jit(nopython = True)
 def probProduct(v, p):
     # v is a matrix of size m x 5
     # p is a vector of size F, activation of the hidden units
@@ -114,6 +117,7 @@ def getPredictedDistribution(v, w, wq):
             ret[i] += wq[j, i] * sample_hidden_vec[j]
     return softmax(ret)
 
+@jit(nopython = True)
 def predictRatingMax(ratingDistribution):
     ### TO IMPLEMENT ###
     # ratingDistribution is a probability distribution over possible ratings
@@ -123,7 +127,7 @@ def predictRatingMax(ratingDistribution):
     # We decide here that the predicted rating will be the one with the highest probability
     return np.argmax(ratingDistribution)
 
-
+@jit(nopython = True)
 def predictRatingExp(ratingDistribution):
     ### TO IMPLEMENT ###
     # ratingDistribution is a probability distribution over possible ratings
@@ -132,7 +136,15 @@ def predictRatingExp(ratingDistribution):
     # that returns a rating from the distribution
     # We decide here that the predicted rating will be the expectation over
     # the softmax applied to ratingDistribution
-    return np.sum(ratingDistribution * np.arange(1,K+1))
+    rating = np.sum(ratingDistribution * np.arange(1,K+1))
+    if rating < 1:
+        print('small')
+        return 1
+    elif rating > 5:
+        print('large')
+        return 5
+    else:
+        return rating
 
 def predictMovieForUser(q, user, W, allUsersRatings, predictType="exp"):
     # movie is movie idx
