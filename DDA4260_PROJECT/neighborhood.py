@@ -2,6 +2,9 @@ import projectLib as lib
 import rbm
 import numpy as np
 
+training = lib.getTrainingData()
+validation = lib.getValidationData()
+
 def get_R(data):
     Stats = lib.getUsefulStats(data)
     R = np.zeros((np.max(Stats["users"])+1, np.max(Stats["n_movies"])+1))
@@ -21,10 +24,13 @@ def neighbourhood(dataset,R_hat):
     Stats = lib.getUsefulStats(dataset)
     num_items = Stats["n_movies"]
     num_users = Stats["n_users"]
-    R = get_R(dataset)
+    R = np.full((300, 100), 0)
+    for row in training:
+        R[row[1], row[0]] = row[2]
+    # R = get_R(dataset)
     R_error = R - R_hat
-    for (movie, user) in zip(Stats["movies"], Stats["users"]):
-        R_error[user, movie] = None
+    # for (movie, user) in zip(Stats["movies"], Stats["users"]):
+    #     R_error[user, movie] = None
 
     # Calculate the similarity matrix between movies using cosine similarity
     n1 = 0
@@ -37,7 +43,6 @@ def neighbourhood(dataset,R_hat):
                 similarity_matrix[i, j] = 1
                 continue
             for k in range(num_users):
-                if R_error[k,i] != None and R_error[k,j] != None:
                     dot_product += R_error[k, i] * R_error[k, j]
                     n1 += R_error[k,i]**2
                     n2 += R_error[k,j]**2
@@ -48,7 +53,7 @@ def neighbourhood(dataset,R_hat):
             dot_product = 0
 
     # Find the L nearest neighbors for each movie (excluding itself)
-    L = 10  # Number of neighbors to consider
+    L = 50 # Number of neighbors to consider
     neighbors = []
 
     for i in range(num_items):
@@ -61,16 +66,17 @@ def neighbourhood(dataset,R_hat):
 
     for user in range(num_users):
         for movie in range(num_items):
-            if R_error[user, movie] == None:  # Only compute R^N for rated movies
-                numerator = 0
-                denominator = 0
-                for neighbor in neighbors[movie]:
-                    if R_error[user, neighbor] != None:
-                        numerator += similarity_matrix[movie, neighbor] * R_error[user, neighbor]
-                        denominator += np.abs(similarity_matrix[movie, neighbor])
-                if denominator != 0:
-                    R_N[user, movie] = R_hat[user, movie] + (numerator / denominator)
-            else:
-                R_N[user, movie] = R[user, movie]
+            numerator = 0
+            denominator = 0
+            for neighbor in neighbors[movie]:
+                numerator += similarity_matrix[movie, neighbor] * R_error[user, neighbor]
+                denominator += np.abs(similarity_matrix[movie, neighbor])
+            if denominator != 0:
+                R[user, movie] = R_hat[user, movie] + (numerator / denominator)
     
-    return [R_N[user, movie] for (movie, user) in zip(Stats["movies"], Stats["users"])]
+    for row in training:
+        R[row[1], row[0]] = row[2]
+    for row in validation:
+        R[row[1], row[0]] = row[2]
+    # print([R_N[user, movie] for (movie, user) in zip(Stats["movies"], Stats["users"])])
+    print(R)

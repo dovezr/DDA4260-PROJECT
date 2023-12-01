@@ -8,7 +8,7 @@ K = 5
 @jit(nopython = True)
 def softmax(x):
     # Numerically stable softmax function
-    e_x = np.exp(x - np.max(x))
+    e_x = np.exp(x)
     return e_x / e_x.sum()
 
 def ratingsPerMovie(training):
@@ -39,7 +39,7 @@ def sig(x):
     # ret should be a vector of size n where ret_i = sigmoid(x_i)
     return 1/(1+np.exp(-x))
 
-def visibleToHiddenVec(v, w):
+def visibleToHiddenVec(v, w, b):
     ### TO IMPLEMENT ###
     # v is a matrix of size m x 5. Each row is a binary vector representing a rating
     #    OR a probability distribution over the rating
@@ -51,9 +51,9 @@ def visibleToHiddenVec(v, w):
         for k in range(K):
             for i in range(m):
                 ret[j] += v[i,k] * w[i,j,k]
-    return sig(ret)
+    return sig(ret + b)
 
-def hiddenToVisible(h, w):
+def hiddenToVisible(h, w, b):
     ### TO IMPLEMENT ###
     # h is a binary vector of size F
     # w is an array of size m x F x 5
@@ -70,6 +70,7 @@ def hiddenToVisible(h, w):
         for k in range(K):
             for j in range(F):
                 ret[i,k] += h[j] * w[i,j,k]
+            ret[i,k] += b[i,k]
         ret[i] = softmax(ret[i])
     return ret
 
@@ -93,7 +94,7 @@ def sample(p):
     samples = np.random.random(p.size)
     return np.array(samples <= p, dtype=int)
 
-def getPredictedDistribution(v, w, wq):
+def getPredictedDistribution(v, w, wq, b_h, b_vq):
     ### TO IMPLEMENT ###
     # This function returns a distribution over the ratings for movie q, if user data is v
     # v is the dataset of the user we are predicting the movie for
@@ -108,13 +109,14 @@ def getPredictedDistribution(v, w, wq):
     #   - Backpropagate these hidden states to obtain
     #       the distribution over the movie whose associated weights are wq
     # ret is a vector of size 5
-    hidden_vec = visibleToHiddenVec(v, w)
+    hidden_vec = visibleToHiddenVec(v, w, b_h)
     sample_hidden_vec = sample(hidden_vec)
     F, K = wq.shape
     ret = np.zeros(K)
     for i in range(K):
         for j in range(F):
             ret[i] += wq[j, i] * sample_hidden_vec[j]
+        ret[i] += b_vq[i]
     return softmax(ret)
 
 @jit(nopython = True)
@@ -137,37 +139,30 @@ def predictRatingExp(ratingDistribution):
     # We decide here that the predicted rating will be the expectation over
     # the softmax applied to ratingDistribution
     rating = np.sum(ratingDistribution * np.arange(1,K+1))
-    if rating < 1:
-        print('small')
-        return 1
-    elif rating > 5:
-        print('large')
-        return 5
-    else:
-        return rating
+    return rating
 
-def predictMovieForUser(q, user, W, allUsersRatings, predictType="exp"):
+def predictMovieForUser(q, user, W, allUsersRatings, b_h, b_v, predictType="exp"):
     # movie is movie idx
     # user is user ID
     # type can be "max" or "exp"
     ratingsForUser = allUsersRatings[user]
     v = getV(ratingsForUser)
-    ratingDistribution = getPredictedDistribution(v, W[ratingsForUser[:, 0], :, :], W[q, :, :])
+    ratingDistribution = getPredictedDistribution(v, W[ratingsForUser[:, 0], :, :], W[q, :, :], b_h, b_v[q, :])
     if predictType == "max":
         return predictRatingMax(ratingDistribution)
     else:
         return predictRatingExp(ratingDistribution)
 
-def predict(movies, users, W, allUsersRatings, predictType="exp"):
+def predict(movies, users, W, allUsersRatings, b_h, b_v, predictType="exp"):
     # given a list of movies and users, predict the rating for each (movie, user) pair
     # used to compute RMSE
-    return [predictMovieForUser(movie, user, W, allUsersRatings, predictType=predictType) for (movie, user) in zip(movies, users)]
+    return [predictMovieForUser(movie, user, W, allUsersRatings, b_h, b_v, predictType=predictType) for (movie, user) in zip(movies, users)]
 
-def predictForUser(user, W, allUsersRatings, predictType="exp"):
+def predictForUser(user, W, allUsersRatings, b_h, b_v, predictType="exp"):
     ### TO IMPLEMENT
     # given a user ID, predicts all movie ratings for the user
     n = W.shape[0]
     ret = np.zeros((n))
     for i in range(n):
-        ret[i] = predictMovieForUser(i, user, W, allUsersRatings, predictType)
+        ret[i] = predictMovieForUser(i, user, W, allUsersRatings, b_h, b_v, predictType)
     return ret
